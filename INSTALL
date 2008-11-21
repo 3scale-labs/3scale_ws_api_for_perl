@@ -1,0 +1,15 @@
+To Install: 
+
+Requires: 
+
+LWP::UserAgent (installed by default on most systems). 
+XML::Parser (now standard in perl >= 5.6) 
+
+Run :
+
+perl Makefile.PL
+make install
+
+to install into the default library location. 
+
+run make help for further install options. 

@@ -1,0 +1,6 @@
+0.1.2 - 
+
+* updated error handling to reflect new error return codes
+* Modified all error exports to reflect changes to error codes
+* changed transaction parsing code to reflect changes in transaction code
+* updated tests
