@@ -11,7 +11,7 @@ local $SIG{__WARN__} = sub { cluck @_; };
 
 my $DEBUG = 1 if $ENV{MKS_DEBUG_TESTS};
 
-my $client =  Net::ThreeScale::Client->new( url=>'http://beta.3Scale.net',provider_key => 'abc123');
+my $client =  Net::ThreeScale::Client->new( url=>'http://server.3Scale.net',provider_key => 'abc123');
 
 
 my $response = $client->start('asdasdas',usage=>{foo=>'bar',bob=>'baz'});

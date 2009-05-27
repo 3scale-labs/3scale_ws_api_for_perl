@@ -46,19 +46,20 @@ sub new {
 	my $class = shift;
 	my $params = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
 
-	my $url =
-	  ( defined( $params->{url} ) ) ? $params->{url} : "http://3scale.net";
 	my $agent_string =
 	  ( defined( $params->{user_agent} ) )
 	  ? $params->{user_agent}
 	  : $DEFAULT_USER_AGENT;
+
+  croak("url is required parameter") 
+    unless defined( $params->{url} )
 
 	croak("provider_key is a required parameter")
 	  unless defined( $params->{provider_key} );
 
 	my $self = {};
 	$self->{provider_key} = $params->{provider_key};
-	$self->{url}          = $url;
+	$self->{url}          = $params->{url};
 	$self->{DEBUG}        = $params->{DEBUG};
 	$self->{ua}           = LWP::UserAgent->new( agent => $agent_string );
 	return bless $self, $class;

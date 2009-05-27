@@ -8,7 +8,7 @@ my $provider_key = "provider_key_here";
 my $user_key     = "user_key_here";
 
 my $client = Net::ThreeScale::Client->new(
-	url          => 'http://beta.3scale.net',
+	url          => 'http://server.3scale.net',
 	provider_key => $provider_key,
 );
 

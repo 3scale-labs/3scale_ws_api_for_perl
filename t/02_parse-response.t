@@ -11,7 +11,7 @@ local $SIG{__WARN__} = sub { cluck @_; };
 
 my $DEBUG = 1 if $ENV{MKS_DEBUG_TESTS};
 
-my $client =  Net::ThreeScale::Client->new( provider_key => 'abc123');
+my $client =  Net::ThreeScale::Client->new( url => 'server.3scale.net', provider_key => 'abc123');
 
 my $r1 = <<EOXML;
 <?xml version="1.0" encoding="utf-8" ?>

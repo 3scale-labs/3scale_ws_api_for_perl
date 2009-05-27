@@ -12,7 +12,7 @@ local $SIG{__WARN__} = sub { cluck @_; };
 
 my $DEBUG = 1 if $ENV{MKS_DEBUG_TESTS};
 
-my $client = Net::ThreeScale::Client->new( provider_key => 'abc123' );
+my $client = Net::ThreeScale::Client->new( url => 'server.3scale.net', provider_key => '3scale-abc123' );
 ok(defined($client));
 isa_ok($client,'Net::ThreeScale::Client');
 

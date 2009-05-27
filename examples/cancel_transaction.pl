@@ -8,7 +8,7 @@ my $provider_key = "provider key here";
 my $user_key     = "user key here"; 
 
 
-my $client = Net::ThreeScale::Client->new( url=>'http://beta.3scale.net',provider_key => $provider_key );
+my $client = Net::ThreeScale::Client->new( url=>'http://server.3scale.net',provider_key => $provider_key );
 
 my $response = $client->start( $user_key, usage => {  upload_bandwidth => 12 } );
 if ( $response->is_success() ) {

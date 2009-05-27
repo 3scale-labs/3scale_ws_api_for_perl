@@ -5,7 +5,7 @@ SYNOPSIS
      use Net::ThreeScale::Client;
  
      my $client = new Net::ThreeScale::Client(provider_key=>"my_assigned_provider_key", 
-                                            url=>"http://3Scale.net");
+                                            url=>"backend_hostname");
  
      my $response =  $client->start( $user_key,
                                      usage => { storage => 12 });
@@ -43,8 +43,7 @@ CONSTRUCTOR
         (required) The provider key used to identify you with the 3Scale
         service
 
-    url (optional) The 3Scale service URL, usually this should be left to
-    the default value
+    url (required) The 3Scale service URL. You can find it on http://www.3scale.net/support/api
 
 $response = $client->start($user_key,...)
         Starts a new client transaction the call must include a user key (as
