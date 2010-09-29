@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Net-ThreeScale-Client
-version:             2.0.0
+version:             2.0.1
 abstract:            Client for 3Scale.com web API v2.0
 license:             ~
 author:              
