@@ -10,9 +10,8 @@ sub is_success{
 	return $_[0]->{success};	
 }
 
-
-sub transaction{
-	return $_[0]->{transaction};
+sub usage_reports{
+	return $_[0]->{usage_reports};
 }
 
 sub error_code{
@@ -29,13 +28,13 @@ sub errors{
 1;
 =head1 NAME
 
-Net::ThreeScale::Response - object encapsulating a response to a 3Scale API call
+Net::ThreeScale::Response - object encapsulating a response to a 3Scale API v2.0 call
 
 =head1 SYNOPSIS
 
- $response = $client->start($user_key);
+ $response = $client->authorize(app_id=>$app_id, app_key=>$app_key);
  if($response->is_success){ 
-	my $transaction = $response->transaction;
+	my @usage = @{$response->usage_reports()};
  }else{ 
  	print STDERR "An error occurred with code ", $response->error_code, ":" ,$response->error,"\n";
  }
@@ -52,10 +51,10 @@ Objects are constructed within the API, you should not create them yourself.
 Indicates if the operation which generated the response was successfull. Successful responses will 
 have an associated transaction within the response. 
  
-=item $r->transaction
+=item $r->usage_reports
 
-A Net::ThreeScale::Transaction object which encapsualates some information about the transaction, 
-this object will always have at least a transaction ID set (id).
+A list of usage reports returned by 3Scale indicating how much of the user's
+quota has been used.
  
 =item $r->error_code
 
@@ -72,7 +71,8 @@ Returns a textual description of the error returned by the server.
 
 =head1 SEE ALSO
 
-Net::ThreeScale::Client ThreeScale::Transaction 
+Net::ThreeScale::Client
  
 =head1 AUTHOR
   Owen Cliffe 
+  Eugene Oden

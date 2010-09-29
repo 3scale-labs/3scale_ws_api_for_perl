@@ -1,15 +1,17 @@
-examples/register_transaction.pl
-examples/cancel_transaction.pl
+examples/report_transaction.pl
 lib/Net/ThreeScale/Client.pm
 lib/Net/ThreeScale/Response.pm
-lib/Net/ThreeScale/Transaction.pm
 Makefile.PL
 MANIFEST			This list of files
 META.yml
 README
 INSTALL
 CHANGELOG
+test.env
 t/01-use.t
+t/02_format_transactions.t
 t/02_parse-errors.t
-t/02_parse-response.t
-t/03_live_start_confirm.t
+t/02_parse_authorize_response.t
+t/03_live_authorize.t
+t/03_live_report.t
+t/04_live_authorize_invalid_provider.t

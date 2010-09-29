@@ -8,7 +8,8 @@ WriteMakefile(
 	'PREREQ_PM'    => {
 		'LWP'                 => 0,
 		'HTTP::Request'       => 0,
-		'YAML'                => 0
+		'YAML'                => 0,
+		'XML::Simple'         => 0
 	},
 	ABSTRACT_FROM => 'lib/Net/ThreeScale/Client.pm',
 	AUTHOR        => 'Owen Cliffe <zoot@zoot.org.uk>',

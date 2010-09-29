@@ -8,31 +8,26 @@ use Data::Dumper;
 use Carp;
 
 use XML::Parser;
+use XML::Simple;
 
 use LWP::UserAgent;
+use URI::Escape;
 use HTTP::Request;
 use HTTP::Status;
 use HTTP::Request::Common;
 
 use Net::ThreeScale::Response;
-use Net::ThreeScale::Transaction;
 my $DEFAULT_USER_AGENT;
 
 use constant {
 	TS_RC_SUCCESS                => 'client.success',
-	TS_RC_INVALID_KEY            => 'provider.invalid_key',
-	TS_RC_INVALID_METRIC         => 'provider.invalid_metric',
-	TS_RC_INVALID_TRANSACTION_ID => 'provider.invalid_transaction_id',
-	TS_RC_EXCEEDED_LIMITS        => 'user.exceeded_limits',
-	TS_RC_INVALID_USER_KEY       => 'user.invalid_key',
-	TS_RC_INACTIVE_CONTRACT      =>'user.inactive_contract',
-	TS_RC_INTERNAL_SERVER_ERROR           => 'system.other',
+	TS_RC_AUTHORIZE_FAILED       => 'provider_key_invalid',
 	TS_RC_UNKNOWN_ERROR          => 'client.unknown_error'
 };
 
 BEGIN {
 	@ISA         = qw(Exporter);
-	$VERSION     = "0.1.2";
+	$VERSION     = "2.0.0";
 	@EXPORT_OK   = qw();
 	%EXPORT_TAGS = (
 		'all' => \@EXPORT_OK,
@@ -51,157 +46,127 @@ sub new {
 	  ? $params->{user_agent}
 	  : $DEFAULT_USER_AGENT;
 
-  croak("url is required parameter") 
-    unless defined( $params->{url} )
-
 	croak("provider_key is a required parameter")
-	  unless defined( $params->{provider_key} );
+		unless defined( $params->{provider_key} );
+
+	$params->{url} = 'http://su1.3scale.net'
+		unless(defined($params->{url}));
 
 	my $self = {};
 	$self->{provider_key} = $params->{provider_key};
 	$self->{url}          = $params->{url};
 	$self->{DEBUG}        = $params->{DEBUG};
 	$self->{ua}           = LWP::UserAgent->new( agent => $agent_string );
+
 	return bless $self, $class;
 }
 
-sub start {
+sub authorize {
 	my $self     = shift;
-	my $user_key = shift;
 	my $p        = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
-	die("user_key is a required parameter") unless defined($user_key);
-	my $usage = ( exists( $p->{usage} ) ) ? $p->{usage} : {};
-	die("usage must be a hash ref ") unless ref($usage) eq 'HASH';
+
+	die("app_id is required") unless defined($p->{app_id});
+	die("app_key is required") unless defined($p->{app_key});
 
 	my %query = (
 		provider_key => $self->{provider_key},
-		user_key     => $user_key
 	);
 
-	while ( my ( $k, $v ) = each( %{$usage} ) ) {
-		$query{ 'usage[' . $k . ']' } = $v;
+	while (my ($k, $v) = each(%{$p})) {
+		$query{$k} = $v;
 	}
 
-	my $url = $self->{url} . "/transactions.xml";
+	my $url = URI->new($self->{url} . "/transactions/authorize.xml");
 
-	my $request = HTTP::Request::Common::POST( $url, \%query );
+	$url->query_form(%query);
+
+	my $request = HTTP::Request::Common::GET($url);
 
 	$self->_debug( "start> sending request: ", $request->as_string );
 	my $response = $self->{ua}->request($request);
 
-	$self->_debug( "start> got resposne : ", $response->as_string );
+	$self->_debug( "start> got response : ", $response->as_string );
 
-	if ( $response->is_success ) {
-		my $transaction =
-		  $self->_parse_transaction_response( $response->content() );
-		return Net::ThreeScale::Response->new(
-			error_code  => TS_RC_SUCCESS,
-			success     => 1,
-			transaction => $transaction
-		);
-	}
-	else {
+	if ( not $response->is_success ) {
 		return $self->_wrap_error($response);
 	}
+
+	my $data = $self->_parse_authorize_response( $response->content() );
+	
+	if ($data->{authorized} ne "true") {
+		my $reason = $data->{reason};
+
+		$self->_debug("authorization failed: $reason");
+
+		return Net::ThreeScale::Response->new(
+			success            => 0,
+			error_code         => TS_RC_UNKNOWN_ERROR,
+			error_message      => $reason
+		)
+	}
+
+	$self->_debug( "success" );
+
+	return Net::ThreeScale::Response->new(
+		error_code  => TS_RC_SUCCESS,
+		success     => 1,
+		usage_reports => \@{$data->{usage_reports}->{usage_report}}
+	);
 }
 
-sub confirm {
-	my $self        = shift;
-	my $transaction = shift;
-	my $p           = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
-	die("transaction is a required parameter") unless defined($transaction);
+sub report {
+	my $self     = shift;
+	my $p        = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
 
-	my $usage = ( exists( $p->{usage} ) ) ? $p->{usage} : {};
-	die("usage must be a hash ref ") unless ref($usage) eq 'HASH';
+	die("transactions is a required parameter") unless defined($p->{transactions});
+	die("transactions parameter must be a list")
+		unless (ref($p->{transactions}) eq "ARRAY");
 
-	my $transaction_id;
-	if ( ref($transaction) eq 'Net::ThreeScale::Transaction' ) {
-		$transaction_id = $transaction->id;
-	}
-	else {
-		$transaction_id = $transaction;
+	my %query = (
+		provider_key => $self->{provider_key},
+	);
+
+	while (my ($k, $v) = each(%{$p})) {
+		if ($k eq "transactions") {
+			next;
+		}
+
+		$query{$k} = $v;
 	}
 
-	my $url =
-	  $self->{url} . '/transactions/' . $transaction_id . '/confirm.xml';
-	my %query = ( provider_key => $self->{provider_key} );
-	while ( my ( $k, $v ) = each( %{$usage} ) ) {
-		$query{ 'usage[' . $k . ']' } = $v;
+	my $content = "";
+
+	while (my ($k, $v) = each(%query)) {
+		if (length($content)) {
+				$content .= "&\r\n";
+		}
+
+		$content .= "$k=" . uri_escape($v);
 	}
-	my $request = HTTP::Request::Common::POST( $url, \%query );
-	$self->_debug( "confirm> sending request: ", $request->as_string );
+
+	my $txnString = $self->_format_transactions(@{$p->{transactions}});
+
+	$content .= "&" . $txnString;
+
+	my $url = $self->{url} . "/transactions.xml";
+
+	my $request = HTTP::Request::Common::POST($url, Content=>$content);
+
+	$self->_debug( "start> sending request: ", $request->as_string );
 	my $response = $self->{ua}->request($request);
-	$self->_debug( "confirm> got response: ", $response->as_string );
-	if ( $response->is_success ) {
-		my $ret_transaction;
-		if ( ref($transaction) eq 'Net::ThreeScale::Transaction' ) {
-			$ret_transaction = $transaction;
-		}
-		else {
-			$ret_transaction =
-			  new Net::ThreeScale::Transaction( id => $transaction_id );
-		}
-		return Net::ThreeScale::Response->new(
-			transaction => $ret_transaction,
-			success     => 1,
-			error_code  => TS_RC_SUCCESS
-		);
-	}
-	else {
+
+	$self->_debug( "start> got response : ", $response->as_string );
+
+	if ( not $response->is_success ) {
 		return $self->_wrap_error($response);
 	}
-}
 
-sub cancel {
-	my $self        = shift;
-	my $transaction = shift;
-	my $p           = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
-	die("transaction is a required parameter") unless defined($transaction);
+	$self->_debug( "success" );
 
-	my $usage = ( exists( $p->{usage} ) ) ? $p->{usage} : {};
-	die("usage must be a hash ref ") unless ref($usage) eq 'HASH';
-
-	my $transaction_id;
-	if ( ref($transaction) eq 'Net::ThreeScale::Transaction' ) {
-		$transaction_id = $transaction->id;
-	}
-	else {
-		$transaction_id = $transaction;
-	}
-
-	my $url = $self->{url} . '/transactions/' . $transaction_id . '.xml';
-	my %query = ( provider_key => $self->{provider_key} );
-	while ( my ( $k, $v ) = each( %{$usage} ) ) {
-		$query{ 'usage[' . $k . ']' } = $v;
-	}
-
-# use POST semantics for delete, and then change method name to make up for lack of delete in LWP
-	my $request = HTTP::Request::Common::POST( $url, \%query );
-	$request->method('DELETE');
-	$self->_debug( "delete> sending request: ", $request->as_string );
-	my $response = $self->{ua}->request($request);
-	$self->_debug( "delete> got response: ", $response->as_string );
-	if ( $response->is_success ) {
-		my $ret_transaction;
-		if ( ref($transaction) eq 'Net::ThreeScale::Transaction' ) {
-			$ret_transaction = $transaction;
-		}
-		else {
-			$ret_transaction =
-			  new Net::ThreeScale::Transaction( id => $transaction_id );
-		}
-		return Net::ThreeScale::Response->new(
-			transaction => $ret_transaction,
-			success     => 1,
-			error_code  => TS_RC_SUCCESS
-		);
-	}
-	else {
-
-		return $self->_wrap_error($response);
-
-	}
-
+	return Net::ThreeScale::Response->new(
+		error_code  => TS_RC_SUCCESS,
+		success     => 1,
+	);
 }
 
 #Wraps an HTTP::Response message into a Net::ThreeScale::Response error return value
@@ -210,17 +175,12 @@ sub _wrap_error {
 	my $res  = shift;
 	my $error_code;
 	my $message;
-	eval { ( $error_code, $message ) = $self->_parse_errors( $res->content() ); };
-	if ($@) {
-		if ( $res->code == RC_INTERNAL_SERVER_ERROR ) {
-			$error_code = TS_RC_INTERNAL_SERVER_ERROR;
-			$message    = 'Internal server error';
-		}
-		else {
-			$error_code = TS_RC_UNKNOWN_ERROR;
-			$message    = 'unknown_error';
-		}
 
+	eval { ( $error_code, $message ) = $self->_parse_errors( $res->content() ); };
+
+	if ($@) {
+		$error_code = TS_RC_UNKNOWN_ERROR;
+		$message    = 'unknown_error';
 	}
 
 	return Net::ThreeScale::Response->new(
@@ -228,7 +188,6 @@ sub _wrap_error {
 		error_code => $error_code,    #
 		error_message      => $message
 	);
-
 }
 
 # Parses an error document out of a response body
@@ -252,8 +211,8 @@ sub _parse_errors {
 				if ( $element eq 'error' ) {
 					$in_error  = 1;
 					$cur_error = "";
-					if ( defined( $atts{id} ) ) {
-						$errcode = $atts{id};
+					if ( defined( $atts{code} ) ) {
+						$errcode = $atts{code};
 					}
 				}
 			},
@@ -277,42 +236,63 @@ sub _parse_errors {
 	return ( $errcode, $errstring );
 }
 
-sub _parse_transaction_response {
+sub _parse_authorize_response {
 	my $self          = shift;
 	my $response_body = shift;
-	my $in_error      = 0;
-	my $content       = undef;
-	my $transaction_id;
-	my $contract_name;
-	my $provider_verification_key;
-	my $parser = XML::Parser->new(
-		Handlers => {
-			Start => sub {
-				undef($content);
-			},
-			End => sub {
-				if ( $_[1] eq 'id' ) {
-					$transaction_id = $content;
-				}
-				elsif ( $_[1] eq 'contract_name' ) {
-					$contract_name = $content;
-				}
-				elsif ( $_[1] eq 'provider_verification_key' ) {
-					$provider_verification_key = $content;
-				}
-				undef($content);
-			},
-			Char => sub {
-				$content .= $_[1];
-			  }
+
+	my $xml = new XML::Simple(ForceArray=>['usage_report']);
+
+	my $data = {};
+
+	if (length($response_body)) {
+		$data = $xml->XMLin($response_body);
+	}
+
+	return $data;
+}
+
+sub _format_transactions {
+	my $self          = shift;
+	my (@transactions)  = @_;
+
+	my $output = "";
+
+	my $transNumber = 0;
+
+	for my $trans (@transactions) {
+		die("Transactions should be given as hashes")
+			unless(ref($trans) eq "HASH");
+
+		die("Transactions need an 'app_id'")
+			unless(defined($trans->{app_id}));
+
+		die("Transactions need a 'usage' hash")
+			unless(defined($trans->{usage}) and (ref($trans->{usage}) eq "HASH"));
+
+		die("Transactions need a 'timestamp'")
+			unless(defined($trans->{app_id}));
+
+		my $pref = "transactions[$transNumber]";
+
+		if ($transNumber > 0) {
+				$output .= "&";
 		}
-	);
-	$parser->parse($response_body);
-	return Net::ThreeScale::Transaction->new(
-		id                  => $transaction_id,
-		contract_name       => $contract_name,
-		provider_verification_key => $provider_verification_key
-	);
+
+		$output .= $pref . "[app_id]=" . $trans->{app_id};
+
+		while (my ($k, $v) = each(%{$trans->{usage}})) {
+			$k = uri_escape($k);
+			$v = uri_escape($v);
+			$output .= "&";
+			$output .= $pref . "[usage][$k]=$v";
+		}
+
+		$output .= "&" . $pref . "[timestamp]=" . uri_escape($trans->{timestamp});
+
+		$transNumber += 1;
+	}
+
+	return $output;
 }
 
 sub _debug {
@@ -326,37 +306,58 @@ sub _debug {
 
 =head1 NAME
 
-Net::ThreeScale::Client - Client for 3Scale.com web API payments system
+Net::ThreeScale::Client - Client for 3Scale.com web API version 2.0
 
 =head1 SYNOPSIS
 
  use Net::ThreeScale::Client;
  
  my $client = new Net::ThreeScale::Client(provider_key=>"my_assigned_provider_key", 
-                                        url=>"http://3Scale.net");
+                                        url=>"http://su1.3Scale.net");
  
- my $response =  $client->start( $user_key,
-                                 usage => { storage => 12 });
- 								 
- if($response->is_success){
-	print "created transaction ", $response->transaction,"\"n";
-	...
-	my $conf_response = $client->confirm($response->transaction));
-	if($conf_response->is_success){
-		print STDERR "Confirmed transaction ",$transaction;
-	}else{
-		print STDERR "Confirming transaction failed with error ",
-		              $response->error_code(),":",
-		              $response->error_message(),"\n";
-	}
- } else{
- 	print STDERR "create transaction failed with error :", 
- 			$response->error_message,"\n";
- 	if($response->error_code == TS_RC_EXCEEDED_LIMITS){
- 	 	print "Client has exceeded contract limits";
- 	}else{	
- 	 		...
- 	}
+ my $response = $client->authorize(app_id  => $app_id,
+                                   app_key => $app_key);
+          
+ if($response->is_success) {
+       print "authorized ", $response->transaction,"\"n";
+   ...
+
+   my @transactions = (
+      {
+         app_id => $app_id,
+         usage => {
+           hits => 1,
+         },
+
+         timestamp => "2010-09-01 09:01:00",
+      },
+
+      {
+         app_id => $app_id,
+         usage => {
+            hits => 1,
+         },
+
+         timestamp => "2010-09-02 09:02:00",
+      }
+   );
+
+   my $report_response = $client->report(transactions=>\@transactions));
+   if($report_response->is_success){
+      print STDERR "Transactions reported\n";
+   } else {
+      print STDERR "Failed to report transactions",
+                  $response->error_code(),":",
+                  $response->error_message(),"\n";
+   }
+ } else {
+   print STDERR "authorize failed with error :", 
+      $response->error_message,"\n";
+   if($response->error_code == TS_RC_AUTHORIZE_FAILED) {
+      print "Provider key is invalid";
+   } else { 
+     ...
+   }
  }
 
 =head1 CONSTRUCTOR
@@ -364,7 +365,7 @@ Net::ThreeScale::Client - Client for 3Scale.com web API payments system
  The class method new(...) creates a new 3Scale client object. This may 
  be used to conduct transactions with the 3Scale service. The object is 
  stateless and transactions may span multiple clients. The following 
- paramaters are recognised as arguments to new():
+ parameters are recognised as arguments to new():
 
 =over 4
  
@@ -379,59 +380,46 @@ default value
 
 =back
 
-=head1 $response = $client->start($user_key,...)
+=head1 $response = $client->authorize(app_id=>$app_key, app_key=>$app_key)
 
-Starts a new client transaction the call must include a user key (as 
-a string), identifying the user for whom the transaction is starting. 
+Starts a new client transaction the call must include a application id (as 
+a string) and application key (string),identifying the application to use.
  
-Returns a Net::ThreeScale::Respsonse object which indicates whether the 
-transaction was successfully created including details of the new 
-transaction or, indicates an error if one occured.  
+Returns a Net::ThreeScale::Response object which indicates whether the 
+authorization was successful or indicates an error if one occured.  
  
-The following arguments may also be passed: 
+=head1 $response = $client->report(transactions=>\@transactions)
+
+Reports a list of transactions to 3Scale.
 
 =over 4
 
-=item  usage=>{metric=>value,...} 
+=item transactions=>{app_id=>value,...}
 
-(optional) The usage parameter should contain a  HASHref of  metric/value
-pairs  describing  the estimated resource useage for this transaction. If 
-this  parameter is not present then the actual usage must be reported 
-when the transaction is completed using $client->confirm(...). 
-
-=back
-
-
-=head1 $response = $client->confirm($transaction,...)
-
-Confirms a given transaction with some usage. The first argument must 
-either be a Net::ThreeScale::Tranasaction object obtained from from a 
-Net::ThreeScale::Response  object returned by  $client->start or a transaction
-id. Optional arguments are as follows: 
+Should be an array similar to the following:
 
 =over 4
 
-=item usage=>{metric=>value,...}
-
-(optional) Indicates the actual resources used in this transaction. 
-Should contain a HASHref of metric/value pairs (see $client->start(...)). 
-The values specified here superscede any values passed to 
-$client->start(..) . Usage information must be passed if no usage 
-information was passed to $client->start for this transaction. 
-
+  my @transactions = (
+    { 
+      app_id => $app_id,
+      usage => {
+        hits => 1,
+     }
+     timestamp => "2010-09-01 09:01:00",
+    },
+    { 
+      app_id => $app_id,
+      usage => {
+        hits => 1,
+      }
+      timestamp => "2010-09-01 09:02:00",
+    },
+  );
 
 =back
 
-
-=head1  $response = $client->cancel($transaction)
-
-Cancels a given transaction. $transaction must be either a 
-Net::ThreeScale::Transaction object obtained from from a Net::ThreeScale::Response 
-object returned by  $client->start or a  transaction id (as a string). 
-
-Returns a Net::ThreeScale::Respsonse object which indicates whether the 
-transaction was successfully created including details of the new 
-transaction or, indicates an error if one occured.  
+=back
 
 =head1 EXPORTS / ERROR CODES
 
@@ -444,38 +432,14 @@ which may appear in calls to Net::ThreeScale::Response::error_code
 
 The operation completed successfully 
 
-=item TS_RC_INVALID_KEY
+
+=item TS_RC_AUTHORIZE_FAILED
 
 The  passed provider key was invalid
 
-=item TS_RC_INVALID_METRIC
+=item TS_RC_UNKNOWN_ERROR
 
-One or more of the metrics passed did not correspond to a 
-metric found in the specified contract
-
-=item TS_RC_INVALID_TRANSACTION_ID
-
-The transaction ID was invalid or the transaction has expired
-
-=item TS_RC_EXCEEDED_LIMITS 
-
-The user has exceeded one or more of the limits in the contract 
-
-=item TS_RC_INVALID_USER_KEY
-
-The user key was not found or was invalid
-
-=item TS_RC_INACTIVE_CONTRACT
-
-The specified contract is not active
-
-=item TS_RC_INTERNAL_SERVER_ERROR           
-
-An unspecified internal server error occured	
-
-=item TS_RC_UNKNOWN_ERROR 
-
-Some other unspecified error has occured - this may be due to connectivity issues. 
+An unspecified error occurred.  See the corresponding message for more detail.
 
 =back
 
@@ -487,12 +451,8 @@ Some other unspecified error has occured - this may be due to connectivity issue
 
 Contains details of response contnet and values. 
  
-=item Net::ThreeScale::Transaction
-
-Gives details of information about transactions
-
 =back
 
 =head1 AUTHOR 
 
-(c) Owen Cliffe 2008
+(c) Owen Cliffe 2008, Eugene Oden 2010

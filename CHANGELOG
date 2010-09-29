@@ -1,3 +1,7 @@
+2.0.0 -
+
+* updated for version 2.0 of the 3Scale API
+
 0.1.2 - 
 
 * updated error handling to reflect new error return codes

@@ -1,10 +1,10 @@
 --- #YAML:1.0
 name:                Net-ThreeScale-Client
-version:             0.1.2
-abstract:            Client for 3Scale.com web API payments system
+version:             2.0.0
+abstract:            Client for 3Scale.com web API v2.0
 license:             ~
 author:              
-    - Owen Cliffe <zoot@zoot.org.uk>
+    - Eugene Oden <eugeneoden@gmail.com>
 generated_by:        ExtUtils::MakeMaker version 6.42
 distribution_type:   module
 requires:     

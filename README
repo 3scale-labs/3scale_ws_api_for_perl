@@ -1,124 +1,119 @@
 NAME
-    Net::ThreeScale::Client - Client for 3Scale.com web API payments system
+    Net::ThreeScale::Client - Client for 3Scale.com web API version 2.0
 
 SYNOPSIS
      use Net::ThreeScale::Client;
- 
-     my $client = new Net::ThreeScale::Client(provider_key=>"my_assigned_provider_key", 
-                                            url=>"backend_hostname");
- 
-     my $response =  $client->start( $user_key,
-                                     usage => { storage => 12 });
-                                                                 
-     if($response->is_success){
-            print "created transaction ", $response->transaction,"\"n";
-            ...
-            my $conf_response = $client->confirm($response->transaction));
-            if($conf_response->is_success){
-                    print STDERR "Confirmed transaction ",$transaction;
-            }else{
-                    print STDERR "Confirming transaction failed with error ",
-                                  $response->error_code(),":",
-                                  $response->error(),"\n";
-            }
-     } else{
-            print STDERR "create transaction failed with error :", 
-                            $response->error,"\n";
-            if($response->error_code == TS_RC_FORBIDDEN){
-                    ...
-            }elsif($response->error_code == TS_RC_NOT_FOUND){
-                    ...
-            }elsif($response->error_code == TS_RC_BAD_REQUEST){
-                    ...
-            }
+     
+ my $client = new Net::ThreeScale::Client(provider_key=>"my_assigned_provider_key", 
+                                            url=>"http://su1.3Scale.net");
+     
+ my $response = $client->authorize(app_id  => $app_id,
+                                       app_key => $app_key);
+              
+ if($response->is_success) {
+           print "authorized ", $response->transaction,"\"n";
+       ...
+
+       my @transactions = (
+          {
+             app_id => $app_id,
+             usage => {
+               hits => 1,
+             },
+
+             timestamp => "2010-09-01 09:01:00",
+          },
+
+          {
+             app_id => $app_id,
+             usage => {
+                hits => 1,
+             },
+
+             timestamp => "2010-09-02 09:02:00",
+          }
+       );
+
+       my $report_response = $client->report(transactions=>\@transactions));
+       if($report_response->is_success){
+          print STDERR "Transactions reported\n";
+       } else {
+          print STDERR "Failed to report transactions",
+                      $response->error_code(),":",
+                      $response->error_message(),"\n";
+       }
+     } else {
+       print STDERR "authorize failed with error :", 
+          $response->error_message,"\n";
+       if($response->error_code == TS_RC_AUTHORIZE_FAILED) {
+          print "Provider key is invalid";
+       } else { 
+         ...
+       }
      }
 
 CONSTRUCTOR
      The class method new(...) creates a new 3Scale client object. This may 
      be used to conduct transactions with the 3Scale service. The object is 
      stateless and transactions may span multiple clients. The following 
-     paramaters are recognised as arguments to new():
+     parameters are recognised as arguments to new():
 
     provider_key
         (required) The provider key used to identify you with the 3Scale
         service
 
-    url (required) The 3Scale service URL. You can find it on http://www.3scale.net/support/api
+    url (optional) The 3Scale service URL, usually this should be left to
+        the default value
 
-$response = $client->start($user_key,...)
-        Starts a new client transaction the call must include a user key (as
-        a string), identifying the user for whom the transaction is
-        starting.
+$response = $client->authorize(app_id=>$app_key, app_key=>$app_key)
+    Starts a new client transaction the call must include a application id
+    (as a string) and application key (string),identifying the application
+    to use.
 
-        Returns a Net::ThreeScale::Respsonse object which indicates whether
-        the transaction was successfully created including details of the
-        new transaction or, indicates an error if one occured.
+    Returns a Net::ThreeScale::Response object which indicates whether the
+    authorization was successful or indicates an error if one occured.
 
-        The following arguments may also be passed:
+$response = $client->report(transactions=>\@transactions)
+    Reports a list of transactions to 3Scale.
 
-    usage=>{metric=>value,...}
-        (optional) The usage parameter should contain a HASHref of
-        metric/value pairs describing the estimated resource useage for this
-        transaction. If this parameter is not present then the actual usage
-        must be reported when the transaction is completed using
-        $client->confirm(...).
+    transactions=>{app_id=>value,...}
+        Should be an array similar to the following:
 
-$response = $client->confirm($transaction,...)
-        Confirms a given transaction with some usage. The first argument
-        must either be a Net::ThreeScale::Tranasaction object obtained from
-        from a Net::ThreeScale::Response object returned by $client->start
-        or a transaction id. Optional arguments are as follows:
-
-    usage=>{metric=>value}
-        (optional) Indicates the actual resources used in this transaction.
-        Should contain a HASHref of metric/value pairs (see
-        $client->start(...)). The values specified here superscede any
-        values passed to $client->start(..) . Usage information must be
-        passed if no usage information was passed to $client->start for this
-        transaction.
-
-$response = $client->cancel($transaction)
-        Cancels a given transaction. $transaction must be either a
-        Net::ThreeScale::Transaction object obtained from from a
-        Net::ThreeScale::Response object returned by $client->start or a
-        transaction id (as a string).
-
-        Returns a Net::ThreeScale::Respsonse object which indicates whether
-        the transaction was successfully created including details of the
-        new transaction or, indicates an error if one occured.
+              my @transactions = (
+                { 
+                  app_id => $app_id,
+                  usage => {
+                    hits => 1,
+                 }
+                 timestamp => "2010-09-01 09:01:00",
+                },
+                { 
+                  app_id => $app_id,
+                  usage => {
+                    hits => 1,
+                  }
+                  timestamp => "2010-09-01 09:02:00",
+                },
+              );
 
 EXPORTS / ERROR CODES
-        The following constants are exported and correspond to error codes
-        which may appear in calls to Net::ThreeScale::Response::error_code
+    The following constants are exported and correspond to error codes which
+    may appear in calls to Net::ThreeScale::Response::error_code
 
     TS_RC_SUCCESS
         The operation completed successfully
 
-    TS_RC_FORBIDDEN
-        The operation was not permitted, typically because your provider_key
-        was invalid.
-
-    TS_RC_NOT_FOUND
-        The given resource was not found.
-
-    TS_RC_BAD_REQUEST
-        An invalid request was sent, this may be because metrics passed in
-        the usage part of a call do not exist.
-
-    TS_RC_SERVER_ERROR
-        An internal server error occureed
+    TS_RC_AUTHORIZE_FAILED
+        The passed provider key was invalid
 
     TS_RC_UNKNOWN_ERROR
-        An unknown/unhandled server error occurred
+        An unspecified error occurred. See the corresponding message for
+        more detail.
 
 SEE ALSO
     Net::ThreeScale::Response
         Contains details of response contnet and values.
 
-    Net::ThreeScale::Transaction
-        Gives details of information about transactions
-
-COPYRIGHT
-
-Copyright (c) 2008 3scale networks S.L., released under the MIT license.
+AUTHOR
+    (c) Owen Cliffe 2008, Eugene Oden 2010
 
