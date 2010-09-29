@@ -17,8 +17,7 @@ $DEBUG = 1 if $ENV{MKS_DEBUG_TESTS};
 SKIP: {
 	skip("not configured for a live test", 3) if (not (
 		$ENV{PROVIDER_KEY} and
-		$ENV{APP_ID} and
-		$ENV{APP_KEY}
+		$ENV{APP_ID}
 	));
 
 	my $client = new Net::ThreeScale::Client( url=>'http://su1.3scale.net',

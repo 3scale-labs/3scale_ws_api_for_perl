@@ -66,7 +66,6 @@ sub authorize {
 	my $p        = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
 
 	die("app_id is required") unless defined($p->{app_id});
-	die("app_key is required") unless defined($p->{app_key});
 
 	my %query = (
 		provider_key => $self->{provider_key},
@@ -380,10 +379,11 @@ default value
 
 =back
 
-=head1 $response = $client->authorize(app_id=>$app_key, app_key=>$app_key)
+=head1 $response = $client->authorize(app_id=>$app_id, app_key=>$app_key)
 
 Starts a new client transaction the call must include a application id (as 
-a string) and application key (string),identifying the application to use.
+a string) and (optionally) an application key (string), identifying the
+application to use.
  
 Returns a Net::ThreeScale::Response object which indicates whether the 
 authorization was successful or indicates an error if one occured.  
