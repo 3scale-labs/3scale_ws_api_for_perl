@@ -27,7 +27,7 @@ use constant {
 
 BEGIN {
 	@ISA         = qw(Exporter);
-	$VERSION     = "2.0.1";
+	$VERSION     = "2.0.2";
 	@EXPORT_OK   = qw();
 	%EXPORT_TAGS = (
 		'all' => \@EXPORT_OK,
@@ -86,7 +86,7 @@ sub authorize {
 
 	$self->_debug( "start> got response : ", $response->as_string );
 
-	if ( not $response->is_success ) {
+	if ( not ( $response->is_success || $response->status_line =~ /409/)) {
 		return $self->_wrap_error($response);
 	}
 
