@@ -41,20 +41,14 @@ sub new {
 	my $class = shift;
 	my $params = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
 
-	my $agent_string =
-	  ( defined( $params->{user_agent} ) )
-	  ? $params->{user_agent}
-	  : $DEFAULT_USER_AGENT;
+	my $agent_string = $params->{user_agent} || $DEFAULT_USER_AGENT;
 
 	croak("provider_key is a required parameter")
-		unless defined( $params->{provider_key} );
-
-	$params->{url} = 'http://su1.3scale.net'
-		unless(defined($params->{url}));
+		unless $params->{provider_key};
 
 	my $self = {};
 	$self->{provider_key} = $params->{provider_key};
-	$self->{url}          = $params->{url};
+	$self->{url}          = $params->{url} || 'http://su1.3scale.net';
 	$self->{DEBUG}        = $params->{DEBUG};
 	$self->{ua}           = LWP::UserAgent->new( agent => $agent_string );
 
@@ -76,8 +70,44 @@ sub authorize {
 	}
 
 	my $url = URI->new($self->{url} . "/transactions/authorize.xml");
-
 	$url->query_form(%query);
+
+	return $self->_authorize_given_url( $url );
+}
+
+
+sub authrep {
+	my $self     = shift;
+	my $p        = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
+
+	die("user_key is required") unless defined($p->{user_key});
+
+	my %query = (
+		provider_key => $self->{provider_key},
+	);
+
+	while (my ($k, $v) = each(%{$p})) {
+		$query{$k} = $v;
+	}
+
+	if ( $query{'usage'} ){
+		while (my ($metric_name, $value) = each %{$query{'usage'}} ){
+			$query{"usage[$metric_name]"} = $value;
+		}
+		delete $query{'usage'};
+	}
+
+	my $url = URI->new($self->{url} . "/transactions/authrep.xml");
+	$url->query_form(%query);
+
+	return $self->_authorize_given_url( $url );
+}
+
+
+
+sub _authorize_given_url {
+	my $self     = shift;
+	my $url      = shift;
 
 	my $request = HTTP::Request::Common::GET($url);
 
@@ -86,6 +116,7 @@ sub authorize {
 
 	$self->_debug( "start> got response : ", $response->as_string );
 
+	# HTTP 409 = Conflict
 	if ( not ( $response->is_success || $response->status_line =~ /409/)) {
 		return $self->_wrap_error($response);
 	}
@@ -112,6 +143,10 @@ sub authorize {
 		usage_reports => \@{$data->{usage_reports}->{usage_report}}
 	);
 }
+
+
+
+
 
 sub report {
 	my $self     = shift;
