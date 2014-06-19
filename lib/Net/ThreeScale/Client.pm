@@ -314,7 +314,8 @@ sub _format_transactions {
 
 		$output .= $pref . "[app_id]=" . $trans->{app_id};
 
-		while (my ($k, $v) = each(%{$trans->{usage}})) {
+		foreach my $k ( sort keys %{$trans->{usage}} ){
+			my $v = $trans->{usage}->{$k};
 			$k = uri_escape($k);
 			$v = uri_escape($v);
 			$output .= "&";
