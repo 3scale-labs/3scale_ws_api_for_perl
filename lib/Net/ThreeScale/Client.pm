@@ -27,7 +27,7 @@ use constant {
 
 BEGIN {
 	@ISA         = qw(Exporter);
-	$VERSION     = "2.0.3";
+	$VERSION     = "2.0.4";
 	@EXPORT_OK   = qw();
 	%EXPORT_TAGS = (
 		'all' => \@EXPORT_OK,
@@ -131,7 +131,8 @@ sub _authorize_given_url {
 		return Net::ThreeScale::Response->new(
 			success            => 0,
 			error_code         => TS_RC_UNKNOWN_ERROR,
-			error_message      => $reason
+			error_message      => $reason,
+			usage_reports => \@{$data->{usage_reports}->{usage_report}}
 		)
 	}
 
