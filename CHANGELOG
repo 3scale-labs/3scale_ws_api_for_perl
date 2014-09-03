@@ -1,3 +1,11 @@
+2.0.4 -
+
+* authrep now returns usage even (or especially useful) when the quota is exceeded
+
+2.0.2 -
+
+* implemented method 'authrep'
+
 2.0.0 -
 
 * updated for version 2.0 of the 3Scale API
