@@ -470,6 +470,11 @@ An unspecified error occurred.  See the corresponding message for more detail.
 
 =back
 
+=head1 SUPPORT
+
+3scale support say,
+I<We do not have anyone in 3scale actively maintaining it, but we will certainly monitor pull requests and consider merging any useful contributions.>
+
 =head1 SEE ALSO 
 
 =over 4
