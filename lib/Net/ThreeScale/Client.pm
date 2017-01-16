@@ -10,6 +10,7 @@ use Carp;
 use XML::Parser;
 use XML::Simple;
 
+use Ref::Util qw(is_arrayref is_hashref);
 use LWP::UserAgent;
 use URI::Escape;
 use HTTP::Request;
@@ -145,7 +146,7 @@ sub report {
 
 	die("transactions is a required parameter") unless defined($p->{transactions});
 	die("transactions parameter must be a list")
-		unless (ref($p->{transactions}) eq "ARRAY");
+		unless (is_arrayref($p->{transactions}));
 
 	my %query = (
 		provider_key => $self->{provider_key},
@@ -286,13 +287,13 @@ sub _format_transactions {
 
 	for my $trans (@transactions) {
 		die("Transactions should be given as hashes")
-			unless(ref($trans) eq "HASH");
+			unless(is_hashref($trans));
 
 		die("Transactions need an 'app_id'")
 			unless(defined($trans->{app_id}));
 
 		die("Transactions need a 'usage' hash")
-			unless(defined($trans->{usage}) and (ref($trans->{usage}) eq "HASH"));
+			unless(defined($trans->{usage}) and is_hashref($trans->{usage}));
 
 		die("Transactions need a 'timestamp'")
 			unless(defined($trans->{app_id}));
