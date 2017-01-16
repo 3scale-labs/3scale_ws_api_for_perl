@@ -1,3 +1,8 @@
+2.1.2 -
+
+* reintroduced method _authorize_given_url
+* use Ref::Util
+
 2.1.1 -
 
 * Return application_plan.
