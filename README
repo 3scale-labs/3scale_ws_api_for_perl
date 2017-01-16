@@ -1,4 +1,9 @@
-> NOTE: THE CODE IS UNMAINTAINED
+NOTE: THE CODE OF THIS REPO IS UNMAINTAINED. Feel free to contribute helpful links that could make the use of this plugin easier. 
+
+UPDATED CODE CONTRIBUTIONS:
+
+https://github.com/davel/3scale_ws_api_for_perl
+
 
 NAME
     Net::ThreeScale::Client - Client for 3Scale.com web API version 2.0
