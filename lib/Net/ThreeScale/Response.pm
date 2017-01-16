@@ -14,6 +14,10 @@ sub usage_reports{
 	return $_[0]->{usage_reports};
 }
 
+sub application_plan {
+	return $_[0]->{application_plan};
+}
+
 sub error_code{
 	return $_[0]->{error_code};	
 }

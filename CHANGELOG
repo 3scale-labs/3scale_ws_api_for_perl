@@ -1,3 +1,8 @@
+2.1.1 -
+
+* Return application_plan.
+* Switch to Dist::Zilla.
+
 2.0.4 -
 
 * authrep now returns usage even (or especially useful) when the quota is exceeded
