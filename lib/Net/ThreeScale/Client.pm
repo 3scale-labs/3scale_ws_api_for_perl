@@ -10,6 +10,7 @@ use Carp;
 use XML::Parser;
 use XML::Simple;
 
+use Ref::Util qw(is_arrayref is_hashref);
 use LWP::UserAgent;
 use URI::Escape;
 use HTTP::Request;
@@ -55,6 +56,45 @@ sub new {
 	return bless $self, $class;
 }
 
+sub _authorize_given_url{
+    my $self = shift;
+    my $url = shift;
+
+    my $request = HTTP::Request::Common::GET($url);
+    $self->_debug( "start> sending request: ", $request->as_string );
+
+    my $response = $self->{ua}->request($request);
+    $self->_debug( "start> got response : ", $response->as_string );
+
+    # HTTP 409 = Conflict
+    if ( not ( $response->is_success || $response->status_line =~ /409/)) {
+        return $self->_wrap_error($response);
+    }
+
+    my $data = $self->_parse_authorize_response( $response->content() );
+	
+    if ($data->{authorized} ne "true") {
+        
+        my $reason = $data->{reason};        
+        $self->_debug("authorization failed: $reason");
+        
+        return Net::ThreeScale::Response->new(
+            success            => 0,
+            error_code         => TS_RC_UNKNOWN_ERROR,
+            error_message      => $reason,
+            usage_reports      => \@{$data->{usage_reports}->{usage_report}},
+        )
+    }
+
+    $self->_debug( "success" );
+    return Net::ThreeScale::Response->new(
+        error_code  => TS_RC_SUCCESS,
+        success     => 1,
+        usage_reports => \@{$data->{usage_reports}->{usage_report}},
+        application_plan => $data->{plan},
+    );
+}
+
 sub authorize {
 	my $self     = shift;
 	my $p        = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
@@ -72,42 +112,7 @@ sub authorize {
 	my $url = URI->new($self->{url} . "/transactions/authorize.xml");
 
 	$url->query_form(%query);
-
-	my $request = HTTP::Request::Common::GET($url);
-
-	$self->_debug( "start> sending request: ", $request->as_string );
-	my $response = $self->{ua}->request($request);
-
-	$self->_debug( "start> got response : ", $response->as_string );
-
-	# HTTP 409 = Conflict
-	if ( not ( $response->is_success || $response->status_line =~ /409/)) {
-		return $self->_wrap_error($response);
-	}
-
-	my $data = $self->_parse_authorize_response( $response->content() );
-	
-	if ($data->{authorized} ne "true") {
-		my $reason = $data->{reason};
-
-		$self->_debug("authorization failed: $reason");
-
-		return Net::ThreeScale::Response->new(
-			success            => 0,
-			error_code         => TS_RC_UNKNOWN_ERROR,
-			error_message      => $reason,
-			usage_reports      => \@{$data->{usage_reports}->{usage_report}},
-		)
-	}
-
-	$self->_debug( "success" );
-
-	return Net::ThreeScale::Response->new(
-		error_code  => TS_RC_SUCCESS,
-		success     => 1,
-		usage_reports => \@{$data->{usage_reports}->{usage_report}},
-		application_plan => $data->{plan},
-	);
+        return $self->_authorize_given_url( $url );
 }
 
 
@@ -145,7 +150,7 @@ sub report {
 
 	die("transactions is a required parameter") unless defined($p->{transactions});
 	die("transactions parameter must be a list")
-		unless (ref($p->{transactions}) eq "ARRAY");
+		unless (is_arrayref($p->{transactions}));
 
 	my %query = (
 		provider_key => $self->{provider_key},
@@ -286,13 +291,13 @@ sub _format_transactions {
 
 	for my $trans (@transactions) {
 		die("Transactions should be given as hashes")
-			unless(ref($trans) eq "HASH");
+			unless(is_hashref($trans));
 
 		die("Transactions need an 'app_id'")
 			unless(defined($trans->{app_id}));
 
 		die("Transactions need a 'usage' hash")
-			unless(defined($trans->{usage}) and (ref($trans->{usage}) eq "HASH"));
+			unless(defined($trans->{usage}) and is_hashref($trans->{usage}));
 
 		die("Transactions need a 'timestamp'")
 			unless(defined($trans->{app_id}));
