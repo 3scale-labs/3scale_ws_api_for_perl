@@ -80,3 +80,4 @@ Net::ThreeScale::Client
 =head1 AUTHOR
   Owen Cliffe 
   Eugene Oden
+  Collaborators: Dave Lambley, Ed Freyfogle and Marc Metten.
