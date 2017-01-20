@@ -7,7 +7,7 @@ This repo is community-maintained, not 3scale maintained. All contributions are 
 
 #Collaborators
 
-* Dave Lambley, Adzuna
+* [Dave Lambley](https://github.com/davel), Adzuna
 
 
 
