@@ -8,6 +8,10 @@ This repo is community-maintained, not 3scale maintained. All contributions are 
 #Collaborators
 
 * [Dave Lambley](https://github.com/davel), Adzuna
+* [Ed Freyfogle](https://github.com/freyfogle), OpenCageData
+* [Marc](https://github.com/mtmail), OpenCageData
+
+
 
 
 
