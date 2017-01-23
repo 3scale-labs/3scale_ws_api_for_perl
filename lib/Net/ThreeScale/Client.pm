@@ -492,4 +492,4 @@ Contains details of response contnet and values.
 
 =head1 AUTHOR 
 
-(c) Owen Cliffe 2008, Eugene Oden 2010 and other contributors.
+(c) Owen Cliffe 2008, Eugene Oden 2010. Collaborators: Dave Lambley, Ed Freyfogle and Marc Metten.
