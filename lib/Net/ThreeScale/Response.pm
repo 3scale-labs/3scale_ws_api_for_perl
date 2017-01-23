@@ -78,7 +78,7 @@ Returns a textual description of the error returned by the server.
 
 =head1 SEE ALSO
 
-Net::ThreeScale::Client
+L<Net::ThreeScale::Client>
  
 =head1 AUTHOR
   Owen Cliffe 
