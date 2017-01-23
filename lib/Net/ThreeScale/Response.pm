@@ -1,5 +1,8 @@
 package Net::ThreeScale::Response;
 
+use warnings;
+use strict;
+
 sub new {
 	my $class = shift; 
 	my $self = {@_};
