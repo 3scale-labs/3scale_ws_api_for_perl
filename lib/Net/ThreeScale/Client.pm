@@ -493,3 +493,8 @@ Contains details of response contnet and values.
 =head1 AUTHOR 
 
 (c) Owen Cliffe 2008, Eugene Oden 2010. Collaborators: Dave Lambley, Ed Freyfogle and Marc Metten.
+
+=head1 LICENSE
+
+Released under the MIT license. Please see the LICENSE file in the root
+directory of the distribution.
