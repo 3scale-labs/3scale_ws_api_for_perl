@@ -41,14 +41,16 @@ BEGIN {
 sub new {
 	my $class = shift;
 	my $params = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
-
 	my $agent_string = $params->{user_agent} || $DEFAULT_USER_AGENT;
 
-	croak("provider_key is a required parameter")
-		unless $params->{provider_key};
+	croak("provider_key or service_token/service_id pair are required")
+		unless $params->{provider_key} || ( $params->{service_token} && $params->{service_id});
 
 	my $self = {};
-	$self->{provider_key} = $params->{provider_key};
+	$self->{provider_key}  = $params->{provider_key}  || undef;
+	$self->{service_token} = $params->{service_token} || undef;
+	$self->{service_id}    = $params->{service_id}    || undef;
+
 	$self->{url}          = $params->{url} || 'http://su1.3scale.net';
 	$self->{DEBUG}        = $params->{DEBUG};
 	$self->{ua}           = LWP::UserAgent->new( agent => $agent_string );
@@ -102,7 +104,9 @@ sub authorize {
 	die("app_id is required") unless defined($p->{app_id});
 
 	my %query = (
-		provider_key => $self->{provider_key},
+    (provider_key  => $self->{provider_key})x!!  $self->{provider_key},
+    (service_token => $self->{service_token})x!! $self->{service_token},
+    (service_id    => $self->{service_id})x!!    $self->{service_id},
 	);
 
 	while (my ($k, $v) = each(%{$p})) {
@@ -123,7 +127,9 @@ sub authrep {
 	die("user_key is required") unless defined($p->{user_key});
 
 	my %query = (
-		provider_key => $self->{provider_key},
+    (provider_key  => $self->{provider_key})x!!  $self->{provider_key},
+    (service_token => $self->{service_token})x!! $self->{service_token},
+    (service_id    => $self->{service_id})x!!    $self->{service_id},
 	);
 
 	while (my ($k, $v) = each(%{$p})) {
@@ -153,7 +159,9 @@ sub report {
 		unless (is_arrayref($p->{transactions}));
 
 	my %query = (
-		provider_key => $self->{provider_key},
+    (provider_key  => $self->{provider_key})x!!  $self->{provider_key},
+    (service_token => $self->{service_token})x!! $self->{service_token},
+    (service_id    => $self->{service_id})x!!    $self->{service_id},
 	);
 
 	while (my ($k, $v) = each(%{$p})) {
@@ -345,7 +353,11 @@ Net::ThreeScale::Client - Client for 3Scale.com web API version 2.0
  
  my $client = new Net::ThreeScale::Client(provider_key=>"my_assigned_provider_key", 
                                         url=>"http://su1.3Scale.net");
- 
+
+ # Or initialize by service_token/service_id
+ # my $client = new Net::ThreeScale::Client(service_token=>"SERVICE_TOKEN", 
+ #                                       service_id=>"SERVICE_ID");
+
  my $response = $client->authorize(app_id  => $app_id,
                                    app_key => $app_key);
           
@@ -403,6 +415,14 @@ Net::ThreeScale::Client - Client for 3Scale.com web API version 2.0
 =item provider_key 
 
 (required) The provider key used to identify you with the 3Scale service
+
+=item service_token 
+
+(required) Service API key with 3scale (also known as service token).
+
+=item service_id 
+
+(required) Service id. Required.
 
 =item url 
 
@@ -498,3 +518,4 @@ Contains details of response contnet and values.
 
 Released under the MIT license. Please see the LICENSE file in the root
 directory of the distribution.
+
