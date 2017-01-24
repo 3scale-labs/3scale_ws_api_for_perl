@@ -44,7 +44,7 @@ sub new {
 	my $agent_string = $params->{user_agent} || $DEFAULT_USER_AGENT;
 
 	croak("provider_key or service_token/service_id pair are required")
-		unless $params->{provider_key} || ( $params->{service_token} && $params->{service_id});
+		unless $params->{provider_key} xor ( $params->{service_token} && $params->{service_id});
 
 	my $self = {};
 	$self->{provider_key}  = $params->{provider_key}  || undef;
