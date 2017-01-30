@@ -3,21 +3,17 @@ package Net::ThreeScale::Client;
 use strict;
 use warnings;
 use vars qw($VERSION @ISA @EXPORT_OK %EXPORT_TAGS %QUEUE @QUEUE $QUEUE);
-use Exporter;
-use Data::Dumper;
-use Carp;
 
+use Carp;
+use Data::Dumper;
+use Exporter;
+use HTTP::Tiny;
+use Net::ThreeScale::Response;
+use Ref::Util qw(is_arrayref is_hashref);
+use URI::Escape::XS qw(uri_escape);
 use XML::Parser;
 use XML::Simple;
 
-use Ref::Util qw(is_arrayref is_hashref);
-use LWP::UserAgent;
-use HTTP::Request;
-use HTTP::Request::Common;
-use HTTP::Status;
-use URI::Escape::XS qw(uri_escape);
-
-use Net::ThreeScale::Response;
 my $DEFAULT_USER_AGENT;
 
 use constant {
@@ -50,28 +46,33 @@ sub new {
     $self->{provider_key} = $params->{provider_key};
     $self->{url}          = $params->{url} || 'http://su1.3scale.net';
     $self->{DEBUG}        = $params->{DEBUG};
-    $self->{ua}           = LWP::UserAgent->new( agent => $agent_string );
+    $self->{HTTPTiny}     = HTTP::Tiny->new( 
+        'agent'      => $agent_string,
+        'keep_alive' => 1,
+        'timeout'    => 5,
+    );
     
     return bless $self, $class;
 }
 
 sub _authorize_given_url{
     my $self = shift;
-    my $url = shift;
+    my $url  = shift;
 
-    my $request = HTTP::Request::Common::GET($url);
-    $self->_debug( "start> sending request: ", $request->as_string );
-
-    my $response = $self->{ua}->request($request);
+    $self->_debug( "start> sending GET request: ", $url );
+    
+    my $response = $self->{HTTPTiny}->get($url);
     $self->_debug( "start> got response : ", $response->as_string );
 
+    if (!$response->{success}){
+        return $self->_wrap_error($response);
+    }
     # HTTP 409 = Conflict
-    if ( not ( $response->is_success || $response->status_line =~ /409/)) {
+    if ($response->{status} == 409){
         return $self->_wrap_error($response);
     }
 
-    my $data = $self->_parse_authorize_response( $response->content() );
-	
+    my $data = $self->_parse_authorize_response( $response->{content} );
     if ($data->{authorized} ne "true") {
         
         my $reason = $data->{reason};        
@@ -124,7 +125,7 @@ sub authrep {
         provider_key => $self->{provider_key},
     );
     
-    while (my ($k, $v) = each(%{$p})) {
+    while ( my ($k, $v) = each(%{$p}) ){
         $query{$k} = $v;
     }
 
@@ -170,19 +171,17 @@ sub report {
     }
 
     my $txnString = $self->_format_transactions(@{$p->{transactions}});
-
     $content .= "&" . $txnString;
 
     my $url = $self->{url} . "/transactions.xml";
 
-    my $request = HTTP::Request::Common::POST($url, Content=>$content);
+    $self->_debug( "start> sending request: ", $url );
 
-    $self->_debug( "start> sending request: ", $request->as_string );
-    my $response = $self->{ua}->request($request);
+    my $response = $self->{HTTPTiny}->post_form($url, { Content=>$content });
+    
+    $self->_debug( "start> got response : ", $response->{content} );
 
-    $self->_debug( "start> got response : ", $response->as_string );
-
-    if ( not $response->is_success ) {
+    if ( !$response->{success} ) {
         return $self->_wrap_error($response);
     }
 
@@ -203,7 +202,7 @@ sub _wrap_error {
     my $message;
 
     eval { 
-        ( $error_code, $message ) = $self->_parse_errors( $res->content() ); 
+        ( $error_code, $message ) = $self->_parse_errors( $res->{content} ); 
     };
 
     if ($@) {
