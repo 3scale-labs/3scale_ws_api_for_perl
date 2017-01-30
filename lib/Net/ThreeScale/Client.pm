@@ -11,10 +11,10 @@ use XML::Parser;
 use XML::Simple;
 
 use LWP::UserAgent;
-use URI::Escape;
 use HTTP::Request;
-use HTTP::Status;
 use HTTP::Request::Common;
+use HTTP::Status;
+use URI::Escape::XS qw(uri_escape);
 
 use Net::ThreeScale::Response;
 my $DEFAULT_USER_AGENT;
