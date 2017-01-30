@@ -492,7 +492,23 @@ Contains details of response contnet and values.
 
 =head1 AUTHOR 
 
-(c) Owen Cliffe 2008, Eugene Oden 2010. Collaborators: Dave Lambley, Ed Freyfogle and Marc Metten.
+(c) Owen Cliffe 2008, Eugene Oden 2010.
+
+=head1 CONTRIBUTORS
+
+=over
+
+=item *
+
+Dave Lambley
+
+=item *
+
+Ed Freyfogle
+
+=item *
+
+Marc Metten
 
 =head1 LICENSE
 
