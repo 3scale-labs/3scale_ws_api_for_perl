@@ -10,6 +10,7 @@ use Exporter;
 use HTTP::Tiny;
 use Net::ThreeScale::Response;
 use Ref::Util qw(is_arrayref is_hashref);
+use Try::Tiny;
 use URI::Escape::XS qw(uri_escape);
 use XML::Parser;
 use XML::Simple;
@@ -198,17 +199,16 @@ sub report {
 sub _wrap_error {
     my $self = shift;
     my $res  = shift;
+
     my $error_code;
     my $message;
 
-    eval { 
-        ( $error_code, $message ) = $self->_parse_errors( $res->{content} ); 
-    };
-
-    if ($@) {
+    try {
+        ($error_code, $message) = $self->_parse_errors( $res->{content} );
+    } catch {
         $error_code = TS_RC_UNKNOWN_ERROR;
         $message    = 'unknown_error';
-    }
+    };
 
     return Net::ThreeScale::Response->new(
         success       => 0,
@@ -223,6 +223,7 @@ sub _wrap_error {
 sub _parse_errors {
     my $self = shift;
     my $body = shift;
+
     my $cur_error;
     my $in_error  = 0;
     my $errstring = undef;
@@ -260,7 +261,12 @@ sub _parse_errors {
         }
     );
 
-    eval { $parser->parse($body); };
+    try {
+        $parser->parse($body);
+    }
+    catch {
+        $errstring = $_;
+    };
     return ( $errcode, $errstring );
 }
 
