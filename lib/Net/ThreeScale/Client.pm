@@ -11,6 +11,7 @@ use HTTP::Tiny;
 use Net::ThreeScale::Response;
 use Ref::Util qw(is_arrayref is_hashref);
 use Try::Tiny;
+
 use URI::Escape::XS qw(uri_escape);
 use XML::Parser;
 use XML::Simple;
@@ -45,6 +46,8 @@ sub new {
 
     my $self = {};
     $self->{provider_key} = $params->{provider_key};
+    $self->{service_token} = $params->{service_token} || undef;
+	  $self->{service_id}    = $params->{service_id}    || undef;
     $self->{url}          = $params->{url} || 'http://su1.3scale.net';
     $self->{DEBUG}        = $params->{DEBUG};
     $self->{HTTPTiny}     = HTTP::Tiny->new( 
@@ -53,7 +56,7 @@ sub new {
         'timeout'    => 5,
     );
     
-    return bless $self, $class;
+    return bless $self, $class;	
 }
 
 sub _authorize_given_url{
@@ -102,9 +105,11 @@ sub authorize {
 
     die("app_id is required") unless defined($p->{app_id});
 
-    my %query = (
-        provider_key => $self->{provider_key},
-    );
+  	my %query = (
+		    (provider_key  => $self->{provider_key})x!!  $self->{provider_key},
+		    (service_token => $self->{service_token})x!! $self->{service_token},
+		    (service_id    => $self->{service_id})x!!    $self->{service_id},
+	  );
 
     while (my ($k, $v) = each(%{$p})) {
         $query{$k} = $v;
@@ -121,10 +126,13 @@ sub authrep {
     my $p    = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
 
     die("user_key is required") unless defined($p->{user_key});
+    
+   	my %query = (
+		    (provider_key  => $self->{provider_key})x!!  $self->{provider_key},
+		    (service_token => $self->{service_token})x!! $self->{service_token},
+		    (service_id    => $self->{service_id})x!!    $self->{service_id},
+	  );
 
-    my %query = (
-        provider_key => $self->{provider_key},
-    );
     
     while ( my ($k, $v) = each(%{$p}) ){
         $query{$k} = $v;
@@ -153,9 +161,11 @@ sub report {
     die("transactions parameter must be a list")
         unless (is_arrayref($p->{transactions}));
 
-    my %query = (
-        provider_key => $self->{provider_key},
-    );
+	  my %query = (
+		    (provider_key  => $self->{provider_key})x!!  $self->{provider_key},
+		    (service_token => $self->{service_token})x!! $self->{service_token},
+		    (service_id    => $self->{service_id})x!!    $self->{service_id},
+	  );
 
     while (my ($k, $v) = each(%{$p})) {
         next if ($k eq "transactions");
@@ -286,7 +296,6 @@ sub _format_transactions {
     my (@transactions)  = @_;
 
     my $output = "";
-
     my $transNumber = 0;
 
     for my $trans (@transactions) {
@@ -350,10 +359,17 @@ Net::ThreeScale::Client - Client for 3Scale.com web API version 2.0
      url          => "http://su1.3Scale.net"
  );
  
+ # Or initialize by service_token/service_id
+ # my $client = new Net::ThreeScale::Client(
+ #     service_token => "SERVICE_TOKEN",
+ #     service_id    => "SERVICE_ID",
+ # );
+
  my $response = $client->authorize(
      app_id  => $app_id,
-     app_key => $app_key
+     app_key => $app_key,
  );
+
           
  if ($response->is_success) {
      print "authorized ", $response->transaction,"\"n";
@@ -406,9 +422,17 @@ Net::ThreeScale::Client - Client for 3Scale.com web API version 2.0
 
 =over 4
  
-=item provider_key 
+=item provider_key
 
 (required) The provider key used to identify you with the 3Scale service
+
+=item service_token
+
+(required) Service API key with 3scale (also known as service token).
+
+=item service_id
+
+(required) Service id. Required.
 
 =item url 
 
@@ -498,7 +522,23 @@ Contains details of response contnet and values.
 
 =head1 AUTHOR 
 
-(c) Owen Cliffe 2008, Eugene Oden 2010. Collaborators: Dave Lambley, Ed Freyfogle and Marc Metten.
+(c) Owen Cliffe 2008, Eugene Oden 2010.
+
+=head1 CONTRIBUTORS
+
+=over
+
+=item *
+
+Dave Lambley
+
+=item *
+
+Ed Freyfogle
+
+=item *
+
+Marc Metten
 
 =head1 LICENSE
 
