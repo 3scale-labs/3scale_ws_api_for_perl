@@ -2,7 +2,7 @@ package Net::ThreeScale::Client;
 
 use strict;
 use warnings;
-use vars qw($VERSION @ISA @EXPORT_OK %EXPORT_TAGS %QUEUE @QUEUE $QUEUE);
+use vars qw($VERSION @ISA @EXPORT_OK %EXPORT_TAGS);
 
 use Carp;
 use Data::Dumper;
