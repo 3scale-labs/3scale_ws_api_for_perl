@@ -1,9 +1,9 @@
 language: perl
 perl:
+  - "5.22"
+  - "5.20" 
   - "5.18.2"
   - "5.14"
-  - "5.12"
-  - "5.10"
 sudo: false
 before_install:
   - eval $(curl https://travis-perl.github.io/init) --auto
