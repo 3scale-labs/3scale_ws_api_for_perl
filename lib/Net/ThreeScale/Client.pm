@@ -2,21 +2,19 @@ package Net::ThreeScale::Client;
 
 use strict;
 use warnings;
-use vars qw($VERSION @ISA @EXPORT_OK %EXPORT_TAGS %QUEUE @QUEUE $QUEUE);
-use Exporter;
-use Data::Dumper;
-use Carp;
+use vars qw($VERSION @ISA @EXPORT_OK %EXPORT_TAGS);
 
+use Carp;
+use Data::Dumper;
+use Exporter;
+use HTTP::Tiny;
+use Net::ThreeScale::Response;
+use Try::Tiny;
+
+use URI::Escape::XS qw(uri_escape);
 use XML::Parser;
 use XML::Simple;
 
-use LWP::UserAgent;
-use HTTP::Request;
-use HTTP::Request::Common;
-use HTTP::Status;
-use URI::Escape::XS qw(uri_escape);
-
-use Net::ThreeScale::Response;
 my $DEFAULT_USER_AGENT;
 
 use constant {
@@ -40,6 +38,7 @@ BEGIN {
 sub new {
 	my $class = shift;
 	my $params = ( $#_ == 0 ) ? { %{ (shift) } } : {@_};
+
 	my $agent_string = $params->{user_agent} || $DEFAULT_USER_AGENT;
 
 	croak("provider_key or service_token/service_id pair are required")
@@ -52,7 +51,11 @@ sub new {
 
 	$self->{url}          = $params->{url} || 'http://su1.3scale.net';
 	$self->{DEBUG}        = $params->{DEBUG};
-	$self->{ua}           = LWP::UserAgent->new( agent => $agent_string );
+	$self->{HTTPTiny}     = HTTP::Tiny->new(
+		'agent'      => $agent_string,
+		'keep_alive' => 1,
+		'timeout'    => 5,
+	);
 
 	return bless $self, $class;
 }
@@ -61,18 +64,20 @@ sub _authorize_given_url{
     my $self = shift;
     my $url = shift;
 
-    my $request = HTTP::Request::Common::GET($url);
-    $self->_debug( "start> sending request: ", $request->as_string );
+    $self->_debug( "start> sending GET request: ", $url );
 
-    my $response = $self->{ua}->request($request);
+    my $response = $self->{HTTPTiny}->get($url);
     $self->_debug( "start> got response : ", $response->as_string );
 
+    if (!$response->{success}){
+        return $self->_wrap_error($response);
+    }
     # HTTP 409 = Conflict
-    if ( not ( $response->is_success || $response->status_line =~ /409/)) {
+    if ($response->{status} == 409){
         return $self->_wrap_error($response);
     }
 
-    my $data = $self->_parse_authorize_response( $response->content() );
+    my $data = $self->_parse_authorize_response( $response->{content} );
 	
     if ($data->{authorized} ne "true") {
         
@@ -187,14 +192,13 @@ sub report {
 
 	my $url = $self->{url} . "/transactions.xml";
 
-	my $request = HTTP::Request::Common::POST($url, Content=>$content);
+	$self->_debug( "start> sending request: ", $url );
 
-	$self->_debug( "start> sending request: ", $request->as_string );
-	my $response = $self->{ua}->request($request);
+	my $response = $self->{HTTPTiny}->post_form($url, { Content=>$content });
 
-	$self->_debug( "start> got response : ", $response->as_string );
+	$self->_debug( "start> got response : ", $response->{content} );
 
-	if ( not $response->is_success ) {
+	if ( !$response->{success} ) {
 		return $self->_wrap_error($response);
 	}
 
@@ -213,16 +217,16 @@ sub _wrap_error {
 	my $error_code;
 	my $message;
 
-	eval { ( $error_code, $message ) = $self->_parse_errors( $res->content() ); };
-
-	if ($@) {
+	try {
+		( $error_code, $message ) = $self->_parse_errors( $res->{content});
+	} catch {
 		$error_code = TS_RC_UNKNOWN_ERROR;
 		$message    = 'unknown_error';
-	}
+	};
 
 	return Net::ThreeScale::Response->new(
 		success    => 0,
-		error_code => $error_code,    #
+		error_code => $error_code,
 		error_message      => $message
 	);
 }
@@ -268,7 +272,12 @@ sub _parse_errors {
 		}
 	);
 
-	eval { $parser->parse($body); };
+	try {
+		$parser->parse($body);
+	}
+	catch {
+		$errstring = $_;
+	};
 
 	return ( $errcode, $errstring );
 }
@@ -277,15 +286,11 @@ sub _parse_authorize_response {
 	my $self          = shift;
 	my $response_body = shift;
 
-	my $xml = new XML::Simple(ForceArray=>['usage_report']);
-
-	my $data = {};
-
 	if (length($response_body)) {
-		$data = $xml->XMLin($response_body);
+		my $xml = new XML::Simple(ForceArray=>['usage_report']);
+		return $xml->XMLin($response_body);
 	}
-
-	return $data;
+	return {};
 }
 
 sub _format_transactions {
@@ -325,7 +330,10 @@ sub _format_transactions {
 			$output .= $pref . "[usage][$k]=$v";
 		}
 
-		$output .= "&" . $pref . "[timestamp]=" . uri_escape($trans->{timestamp});
+		$output .= "&"
+			. $pref
+			. "[timestamp]="
+			. uri_escape($trans->{timestamp});
 
 		$transNumber += 1;
 	}
@@ -483,7 +491,6 @@ which may appear in calls to Net::ThreeScale::Response::error_code
 
 The operation completed successfully 
 
-
 =item TS_RC_AUTHORIZE_FAILED
 
 The  passed provider key was invalid
@@ -497,7 +504,8 @@ An unspecified error occurred.  See the corresponding message for more detail.
 =head1 SUPPORT
 
 3scale support say,
-I<We do not have anyone in 3scale actively maintaining it, but we will certainly monitor pull requests and consider merging any useful contributions.>
+I<We do not have anyone in 3scale actively maintaining it, but we will
+certainly monitor pull requests and consider merging any useful contributions.>
 
 =head1 SEE ALSO 
 
