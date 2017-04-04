@@ -67,7 +67,7 @@ sub _authorize_given_url{
     $self->_debug( "start> sending GET request: ", $url );
 
     my $response = $self->{HTTPTiny}->get($url);
-    $self->_debug( "start> got response : ", $response->as_string );
+    $self->_debug( "start> got response : ", $response->{content} );
 
     if (!$response->{success}){
         return $self->_wrap_error($response);
