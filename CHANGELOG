@@ -1,3 +1,7 @@
+2.1.5 -
+
+* Fix bug introduced by HTTP::Tiny change.
+
 2.1.4 -
 
 * Use HTTP::Tiny rather than LWP.
