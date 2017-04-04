@@ -49,7 +49,7 @@ sub new {
 	$self->{service_token} = $params->{service_token} || undef;
 	$self->{service_id}    = $params->{service_id}    || undef;
 
-	$self->{url}          = $params->{url} || 'http://su1.3scale.net';
+	$self->{url}          = $params->{url} || 'https://su1.3scale.net';
 	$self->{DEBUG}        = $params->{DEBUG};
 	$self->{HTTPTiny}     = HTTP::Tiny->new(
 		'agent'      => $agent_string,
