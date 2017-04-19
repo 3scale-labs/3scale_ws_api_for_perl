@@ -511,9 +511,9 @@ certainly monitor pull requests and consider merging any useful contributions.>
 
 =over 4
 
-=item  Net::ThreeScale::Response
+=item  L<Net::ThreeScale::Response>
 
-Contains details of response contnet and values. 
+Contains details of response content and values.
  
 =back
 
@@ -537,7 +537,11 @@ Ed Freyfogle
 
 Marc Metten
 
+=back
+
 =head1 LICENSE
 
 Released under the MIT license. Please see the LICENSE file in the root
 directory of the distribution.
+
+=cut
