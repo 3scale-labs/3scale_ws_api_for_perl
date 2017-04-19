@@ -514,6 +514,10 @@ certainly monitor pull requests and consider merging any useful contributions.>
 =item  L<Net::ThreeScale::Response>
 
 Contains details of response content and values.
+
+=item L<https://www.3scale.net>
+
+The service with which this package integrates.
  
 =back
 
