@@ -194,7 +194,12 @@ sub report {
 
 	$self->_debug( "start> sending request: ", $url );
 
-	my $response = $self->{HTTPTiny}->post_form($url, { Content=>$content });
+	my $response = $self->{HTTPTiny}->request("POST", $url, {
+		content => $content,
+		headers => {
+			'Content-Type' => 'application/x-www-form-urlencoded',
+		},
+	});
 
 	$self->_debug( "start> got response : ", $response->{content} );
 
