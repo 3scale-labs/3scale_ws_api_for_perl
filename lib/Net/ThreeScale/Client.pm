@@ -11,6 +11,7 @@ use HTTP::Tiny;
 use Net::ThreeScale::Response;
 use Try::Tiny;
 
+use URI;
 use URI::Escape::XS qw(uri_escape);
 use XML::Parser;
 use XML::Simple;
