@@ -26,7 +26,7 @@ use constant {
 
 BEGIN {
 	@ISA         = qw(Exporter);
-	$VERSION     = "2.1.6";
+	$VERSION     = "2.1.7";
 	@EXPORT_OK   = qw();
 	%EXPORT_TAGS = (
 		'all' => \@EXPORT_OK,
